@@ -33,7 +33,7 @@ def summary(soup):
     output_file = acct + "-" + start_date.strftime('%Y%m%d') + "-" +\
               end_date.strftime('%Y%m%d') + "." + args.output
     #print(output_file)
-    return acct, start_date, end_date, output_file
+    return start_date, end_date, output_file
 
 parser = argparse.ArgumentParser(description=\
          'Data processing for HKJC account html statement.')
@@ -51,6 +51,7 @@ soup = BeautifulSoup(f.read(), 'html.parser')
 con5=soup.findAll("td", class_="tableContent5")
 con6=soup.findAll("td", class_="tableContent6")
 
+
 c5=[co5.get_text("|") for co5 in con5]
 c6=[co6.get_text("|") for co6 in con6]
 
@@ -59,44 +60,33 @@ df5 = create_df(c5)
 df6 = create_df(c6)
 df = pd.concat([df5, df6], ignore_index=True)
 
+print(df)
 #### Clean the Date/Time field
 for i in range(len(df)):
     try:
         d = datetime.strptime(df['Date/Time'].iloc[i], "%d-%m-%Y|%H:%M")
     except:
         print("No Date/Time cleaning for record ", i)
-        #d2 = datetime.strptime(df['Transaction Details'].iloc[i].split(' ')[1],
-        #    "%d-%b-%Y")
-        #df['Date/Time'].iloc[i] = d2
     else:    
         df['Date/Time'].iloc[i] = d
         print("Date/Time cleaning for record ", i)
 
 print(df)
-df.sort_values(by=['Ref No', 'Date/Time'], inplace=True)
+df.sort_values(by=['Date/Time', 'Ref No'])
+print(df)
 
-
-#### Clean the Debit and Credit field
+#### Display acct statement summary
+print("HKJC acct statement summary:")
+start_date, end_date, output_file = summary(soup)
+print (start_date, " - ", end_date)
+print(output_file)
+print(c6)
 for i in range(len(df)):
     df["Debit"].iloc[i] = df["Debit"].iloc[i].replace("$", "").replace(",", "")
     try:
         df["Debit"].iloc[i] = float(df["Debit"].iloc[i])
     except:
         df["Debit"].iloc[i] = 0.00
-
-    df["Credit"].iloc[i] = df["Credit"].iloc[i].replace("$", "").replace(",", "")
-    try:
-        df["Credit"].iloc[i] = float(df["Credit"].iloc[i])
-    except:
-        df["Credit"].iloc[i] = 0.00
-
-
-#### Display acct statement summary
-print("HKJC acct statement summary:")
-acct, start_date, end_date, output_file = summary(soup)
-df["Acct ID"] = acct
-df = df[["Acct ID", "Ref No", "Date/Time", "Race Day", "Bet Type", "Transaction Details", "Debit", "Credit"]]
-print(df)
-print (start_date, " - ", end_date)
-print(output_file)
-df.to_csv(output_file, index=False)
+    print(type(df["Debit"].iloc[i]))
+print(df["Debit"].sum())
+#df.to_csv(output_file)
